@@ -1,0 +1,827 @@
+
+<link rel="import" href="{{ .projectPath }}/static/shared-styles.html">
+
+<dom-module id="app-main">
+    <template>
+        <style include="shared-styles"></style>
+        <style>
+            paper-toast.error {
+                --paper-toast-background-color: var(--paper-red-400);
+                --paper-toast-color: white;
+                @apply(--layout-horizontal);
+                @apply(--layout-justified);
+            }
+            .error-text {
+                width: 100%;
+                @apply(--layout-vertical);
+                @apply(--layout-start);
+            }
+            app-header {
+                background-color: var(--toolbar-bg-color);
+                color: var(--toolbar-color)
+            }
+            .drawer-toolbar {
+                padding: 0;
+            }
+            app-header paper-icon-button {
+                --paper-icon-button-ink-color: var(--toolbar-color);
+            }
+            @media (min-width: 641px) {
+                app-header-layout {
+                    z-index: 1;
+                }
+            }
+            .list-title {
+                font-size: 11px;
+                margin: 4px 8px 8px 16px;
+            }
+            app-toolbar > div {
+                padding-left: 8px;
+            }
+            #own-user-info {
+                --cc-user-info-background-color: var(--toolbar-bg-color);
+                --cc-user-info-color: var(--toolbar-color);
+                --cc-user-info-alt-color: #dddddd;
+            }
+            #app-area {
+                width: 100%;
+                height: 100%;
+                @apply(--layout-vertical);
+            }
+            .h100 {
+                height: 100%;
+            }
+            .fit-vertical {
+                width: 100%;
+                height: 100%;
+                @apply(--layout-vertical);
+            }
+            .messages {
+                height: 100%;
+                @apply(--layout-vertical);
+            }
+            .messages-area {
+                @apply(--layout-flex);
+                overflow-y: scroll
+            }
+            .messages-input-area {
+                width: 100%;
+                @apply(--layout-horizontal);
+            }
+            .messages-input-area > paper-textarea {
+                padding-left: 8px;
+                padding-right: 8px;
+                @apply(--layout-flex);
+            }
+            .messages-input-area > paper-button {
+                color: var(--toolbar-bg-color);
+            }
+
+            #localvideo {
+                position: absolute;
+                right: 16px;
+                bottom: 36px;
+                z: 10;
+            }
+            #callButton {
+                background-color: var(--paper-green-500);
+                color: white;
+            }
+            #callAnswerButton {
+                background-color: var(--paper-green-400);
+                color: #ffffff;
+                border-radius: 50%;
+            }
+            #callRejectButton {
+                background-color: var(--paper-red-400);
+                color: #ffffff;
+                border-radius: 50%;
+            }
+            .callControlButtons {
+                @apply(--layout-horizontal);
+                @apply(--layout-center-justified);
+            }
+            .callControlButtons > ::content > * {
+                margin: 16px;
+            }
+            .all-center {
+                height: 100%;
+                @apply(--layout-vertical);
+                @apply(--layout-center);
+                @apply(--layout-center-aligned);
+            }
+            .call-control-block {
+                margin: 8px;
+                @apply(--layout-horizontal);
+                @apply(--layout-start);
+            }
+            #recordButton {
+                margin-right: 16px;
+                color: #ffffff;
+            }
+            #recordButton[active] {
+                color: var(--paper-red-400);
+            }
+            paper-dialog > div {
+                margin: 32px;
+            }
+        </style>
+        <app-drawer-layout id="layout" fullbleed>
+
+            <!-- Drawer content -->
+            <app-drawer id="drawer">
+                <app-toolbar class="drawer-toolbar">
+                    <cc-user-info id="own-user-info" user-name=[[getUserName(ownUserData.userId)]] 
+                    role=[[ownUserData.role]]
+                    image-src="{{ .projectPath }}/api/getAvatar?userName=[[getUserName(ownUserData.userId)]]"
+                    online=[[online]]>
+                    </cc-user-info>
+                    <paper-tooltip for="own-user-info">[[ownUserData.userId]]</paper-tooltip>
+                </app-toolbar>
+                <paper-divider></paper-divider>
+                <div class="list-title">Inspectors ([[inspectorsOnline.length]])</div>
+                <template is="dom-repeat" items=[[inspectorsOnline]]>
+                    <cc-user-info id="inspector[[index]]"
+                    user-name=[[getUserName(item.userId)]]
+                    user-id=[[item.userId]]
+                    role=[[item.role]]
+                    image-src="{{ .projectPath }}/api/getAvatar?userName=[[getUserName(item.userId)]]"
+                    online=[[item.online]]
+                    selectable
+                    data-args$=[[index]]
+                    on-tap="onInspectorSelect">
+                    </cc-user-info>
+                    <paper-tooltip for="inspector[[index]]">[[item.userId]]</paper-tooltip>
+                </template>
+                <template is="dom-if" if="[[_isInspector(ownUserData.role)]]">
+                    <paper-divider></paper-divider>
+                    <div class="list-title">Agents ([[agentsOnline.length]])</div>
+                    <template is="dom-repeat" items=[[agentsOnline]]>
+                        <cc-user-info id="agent[[index]]"
+                        user-id=[[item.userId]]
+                        user-name=[[getUserName(item.userId)]]
+                        role=[[item.role]]
+                        image-src="{{ .projectPath }}/api/getAvatar?userName=[[getUserName(item.userId)]]"
+                        online=[[item.online]]
+                        selectable
+                        data-args$=[[index]]
+                        on-tap="onAgentSelect">
+                        </cc-user-info>
+                        <paper-tooltip for="agent[[index]]">[[item.userId]]</paper-tooltip>
+                    </template>
+                    <paper-divider></paper-divider>
+                </template>
+            </app-drawer>
+      
+            <!-- Main content -->
+            <app-header-layout has-scrolling-region>
+
+            <app-header fixed effects="waterfall">
+                <app-toolbar>
+                    <paper-icon-button icon="menu" drawer-toggle></paper-icon-button>
+                    <div main-title>[[getUserName(selectedUserId)]]</div>
+                    <template is="dom-if" if="[[_stateTalk(state.value)]]" restamp>
+                        <template is="dom-if" if="[[_isInspector(ownUserData.role)]]">
+                            <paper-icon-button id="recordButton" icon="av:fiber-manual-record" on-tap="onRecordButtonClick" active$=[[recordActive]]></paper-icon-button>
+                            <paper-tooltip for="recordButton">Запись разговора</paper-tooltip>
+                        </template>
+                        <paper-icon-button id="callRejectButton" icon="notification:phone-missed" on-tap="onRejectButtonClick"></paper-icon-button>
+                    </template>
+                </app-toolbar>
+                <paper-tabs selected={{"{{selectedTab}}"}}>
+                    <paper-tab>Messages</paper-tab>
+                    <paper-tab>Calls</paper-tab>
+                </paper-tabs>
+            </app-header>
+            <div id="app-area">
+                <iron-pages selected={{"{{selectedTab}}"}} fallback-selection="0" class="h100">
+                    <div class="messages">
+                        <cc-messages id="messages" selected-user-id="[[selectedUserId]]" own-user-id="[[ownUserData.userId]]" class="messages-area">
+                        </cc-messages>
+                        <paper-divider></paper-divider>
+                        <div class="messages-input-area">
+                            <paper-textarea id="messageTextarea" no-label-float placeholder="Enter message here..."></paper-textarea>
+                            <paper-button on-tap="onSendMessageButtonClick">Send</paper-button>
+                        </div>
+                    </div>
+                    <div class="h100">
+                        <iron-pages selected=[[state.value]] attr-for-selected='view-id' fallback-selection="no-talk" class="h100">
+                            <div view-id="no-talk">
+                                <div class="call-control-block">
+                                    <template is="dom-if" if="[[selectedUserId]]">
+                                        <paper-button id="callButton" disabled="[[callButtonDisabled]]" raised on-tap="onCallButtonClick">
+                                        <iron-icon icon="communication:phone"></iron-icon>
+                                        &nbsp;Make a call
+                                        </paper-button>
+                                    </template>
+                                </div>
+                                <cc-call-statistics id="callStatistics" is-inspector="[[_isInspector(ownUserData.role)]]" selected-user-id="[[selectedUserId]]" own-user-id="[[ownUserData.userId]]"></cc-call-statistics>
+                            </div>
+                            <div class="fit-vertical" view-id="talk">
+                                <video id="remotevideo" class="all-center" autoplay controls></video>
+                            </div> 
+                        </iron-pages>
+                    </div>
+                </iron-pages>
+                <video id="localvideo" width="160px" height="120px" autoplay hidden$=[[_stateFree(state.value)]]></video>
+            </div>
+        
+            </app-header-layout>
+        </app-drawer-layout>
+
+        <paper-dialog id="incomingCallDialog" opened="[[_stateRinging(state.value)]]" modal>
+            <div class="all-center">
+                <p>Incoming call</p>
+                <img src="{{ .projectPath }}/api/getAvatar?userName=[[getUserName(state.with)]]" width="160px">
+                <p>Call from: <b>[[getUserName(state.with)]]</b></p>
+                <div class="callControlButtons">
+                    <paper-icon-button id="callAnswerButton" icon="notification:phone-in-talk" on-tap="onAnswerButtonClick" dialog-confirm></paper-icon-button>
+                    <paper-tooltip for="callAnswerButton">Answer</paper-tooltip>
+                    <paper-icon-button id="callRejectButton" icon="notification:phone-missed" on-tap="onRejectButtonClick" dialog-confirm></paper-icon-button>
+                    <paper-tooltip for="callRejectButton">Reject</paper-tooltip>
+                </div>
+            </div>
+        </paper-dialog>
+
+        <paper-dialog id="outgoingCallDialog" opened="[[_stateCalling(state.value)]]" modal>
+            <div class="all-center">
+                <p>Outgoing call</p>
+                <img src="{{ .projectPath }}/api/getAvatar?userName=[[getUserName(state.with)]]" width="160px">
+                <p>Call to: <b>[[getUserName(state.with)]]</b></p>
+                <div class="callControlButtons">
+                    <paper-icon-button id="callRejectButton" icon="notification:phone-missed" on-tap="onRejectButtonClick" dialog-confirm></paper-icon-button>
+                </div>
+            </div>
+        </paper-dialog>
+
+        <paper-toast id="errorToast" class="fit-bottom error" duration="0">
+            <div class="error-text">
+                <template is="dom-repeat" items="[[activeErrors]]">
+                    <iron-label>[[item]]</iron-label>
+                </template>
+            </div>
+            <paper-icon-button on-click="onErrorToastClose" icon="icons:clear"></paper-icon-button>
+        </paper-toast>
+    </template>
+</dom-module>
+<script>
+    AppMain = Polymer({
+        is: 'app-main',
+        properties: {
+            state: {
+                type: Object,
+                value: { value: "free" },
+                notify: true
+            },
+            selectedTab: {
+                type: String,
+                value: "0",
+                notify: true
+            },
+            online: {
+                type: Boolean,
+                value: false,
+                notify: true
+            },
+            recordActive: {
+                type: Boolean,
+                value: false,
+                notify: true
+            },
+            ownUserData: {
+                type: Object,
+                value: {},
+                notify: true
+            },
+            inspectorsOnline: {
+                type: Array,
+                value: [],
+                notify: true
+            },
+            agentsOnline: {
+                type: Array,
+                value: [],
+                notify: true
+            },
+            selectedUserId: {
+                type: String,
+                value: "",
+                notify: true
+            },
+            callButtonDisabled: {
+                type: Boolean,
+                computed: "_computeCallButtonDisabled(online, state, selectedUserId)"
+            }
+        },
+        localStream: null,
+        remoteStream: null,
+        pc_config: null,
+        _stateCalling: function(stateValue) {
+            return (stateValue == "calling");
+        },
+        _stateRinging: function(stateValue) {
+            return (stateValue == "ringing");
+        },
+        _stateTalk: function(stateValue) {
+            return (stateValue == "talk");
+        },
+        _stateFree: function(stateValue) {
+            return (stateValue == "free");
+        },
+        _isInspector: function(role) {
+            return (role == "inspector");
+        },
+        _computeCallButtonDisabled: function(online, state, selectedUserId) {
+            return (!online) || (selectedUserId == "") || (!find) || (this.state.value != "free");
+        },
+        getUserName: function(userName) {
+            return API.getUserName(userName);
+        },
+        selectUserId: function(userId) {
+            this.set("selectedUserId", userId);
+            this.apiSend({
+                msgType: "selectUserName",
+                selectedUserName: this.getUserName(this.selectedUserId)
+            });
+            this._updateSelect();
+        },
+        _updateSelect: function() {
+            var items = this.getElementsByTagName("cc-user-info");
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].hasAttribute("selectable")) {
+                    if (items[i].userId == this.selectedUserId) {
+                        items[i].setAttribute("selected", true);
+                    } else {
+                        items[i].removeAttribute("selected");
+                    }
+                }
+            }
+        },
+        onInspectorSelect: function(e) {
+            this.selectUserId(this.inspectorsOnline[e.model.index].userId);
+            if (layout.narrow) {
+                drawer.close();
+            }
+        },
+        onAgentSelect: function(e) {
+            this.selectUserId(this.agentsOnline[e.model.index].userId);
+            if (layout.narrow) {
+                drawer.close();
+            }
+        },
+        _userIdOnline: function(userId) {
+            var find = false;
+            for (var i = 0; (i < this.inspectorsOnline.length) && (!find); i++) {
+                if ((this.inspectorsOnline[i].userId == userId) && (this.inspectorsOnline[i].online)) {
+                    find = true;
+                }
+            }
+            for (var i = 0; (i < this.agentsOnline.length) && (!find); i++) {
+                if ((this.agentsOnline[i].userId == userId) && (this.agentsOnline[i].online))  {
+                    find = true;
+                }
+            }
+            return find;
+        },
+        apiConnect: function() {
+            var apiwsUrl = (API.getWebAPIRoot() + "/ws").replace("http", "ws");
+            var self = this;
+            self.apiws = new WebSocket(apiwsUrl);
+            self.apiws.onerror = function(event) {
+                if (this.readyState != 1) {
+                    self.set("online", false);
+                }
+            }
+            self.apiws.onclose = function(event) {
+                self.set("online", false);
+                setTimeout(function() {
+                    delete self.apiws;
+                    setTimeout(function() {
+                        self.apiConnect();
+                    }, 9000);
+                }, 1000);
+            }
+            self.apiws.onmessage = function(event) {
+                var reply = JSON.parse(event.data);
+                //...
+                //console.log("RECEIVE: ", reply);
+                if (reply.msgType == "ownUserData") {
+                    var userData = {
+                        userId: reply.userId,
+                        role: reply.role
+                    }
+                    self.set("ownUserData", userData);
+                    self.pc_config = reply.peerConnectionConfig;
+                } else
+                if (reply.msgType == "userStatusChange") {
+                    if (reply.allUsers) {
+                        self.set("agentsOnline", []);
+                        self.set("inspectorsOnline", []);
+                    }
+                    for (var i = 0; i < reply.changedUserDatas.length; i++) {
+                        var userData = reply.changedUserDatas[i];
+                        var arrayName;
+                        if (userData.role == "agent") {
+                            arrayName = "agentsOnline";
+                        } else
+                        if (userData.role == "inspector") {
+                            arrayName = "inspectorsOnline";
+                        } else {
+                            return;
+                        }
+                        var users = self.get(arrayName);
+                        for (var j = 0; (j < users.length) && 
+                                        (users[j].userId < userData.userId) &&
+                                        (self.getUserName(users[j].userId) != self.getUserName(userData.userId) || (users[j].online));
+                                        j++);
+                        if (j >= users.length) {
+                            self.push(arrayName, userData)
+                        } else
+                        if ((users[j].userId != userData.userId) && (users[j].online)) {
+                            self.splice(arrayName, j, 0, userData);
+                        } else {
+                            self.set(arrayName + "." + j, userData);
+                        }
+                        if (!userData.online) {
+                            if ((self.state.with !== undefined) && (self.state.with == userData.userId)) {
+                                self.rejectCall("User offline");
+                            }
+                        }
+                    }
+                } else
+                if (reply.msgType == "call") {
+                    if (self.state.value == "free") {
+                        self.set("state", {
+                            value: "ringing",
+                            with: reply.from,
+                            callUUID: reply.callUUID
+                        });
+                        self.playRingStart();
+                    } else {
+                        self.callReject("Busy here");
+                    }
+                } else
+                if (reply.msgType == "callAccept") {
+                    if ((self.state.value == "calling") && (self.state.callUUID == reply.callUUID)) {
+                        self.set("state", {
+                            value: "talk",
+                            with: self.state.with,
+                            callUUID: self.state.callUUID
+                        });
+                        self.createPeerConnection(self.state.with, self.localStream);
+                        self.createAndSendOffer();
+                    }
+                } else
+                if (reply.msgType == "callReject") {
+                    if ((self.state.value != "free") && (self.state.callUUID == reply.callUUID)) {
+                        self.rejectCall("Rejected by peer");
+                    }
+                } else
+                if (reply.msgType == "iceCandidate") {
+                    self.pc.addIceCandidate(new RTCIceCandidate(reply.candidate));
+                } else
+                if ((reply.msgType == "sdp") && (reply.sdp.type == "offer")) {
+                    if ((self.state.value == "talk") && (reply.callUUID == self.state.callUUID)) {
+                        self.pc.setRemoteDescription(new RTCSessionDescription(reply.sdp));
+                        self.createAndSendAnswer();
+                    }
+                } else 
+                if ((reply.msgType == "sdp") && (reply.sdp.type == "answer")) {
+                    if ((self.state.value == "talk") && (reply.callUUID == self.state.callUUID)) {
+                        self.pc.setRemoteDescription(new RTCSessionDescription(reply.sdp));
+                    }
+                } else 
+                if (reply.msgType == "callHistory") {
+                    self.$$("#callStatistics").onCallHistoryReceived(reply);
+                } else 
+                if (reply.msgType == "textMessages") {
+                    self.$$("#messages").onMessagesReceived(reply);
+                }
+            }
+            self.apiws.onopen = function(event) {
+                self.set("online", true)
+            }
+            setTimeout(function() {
+                if ((self.apiws !== undefined) && (self.apiws.readyState != 1)) {
+                    self.apiws.close();
+                }
+            }, 8000);
+            setInterval(function() {
+                if ((self.apiws !== undefined) && (self.apiws.readyState == 1)) {
+                    self.apiSend({
+                        msgType: "ping"
+                    });
+                }
+            }, 30000);
+        },
+        apiSend: function(obj) {
+            //...
+            //console.log("SEND: ", obj);
+            this.apiws.send(JSON.stringify(obj));
+        },
+        onCallButtonClick: function() {
+            var self = this;
+            if (!this._userIdOnline(this.selectedUserId)) {
+                API.addError("User with id: " + this.selectedUserId + " is offline. Select another user");
+                return;
+            }
+            this.set("selectedTab", 1);
+            var callUUID = API.generateUUID();
+            self.openLocalStream(function(err, localstream) {
+                if (!err) {
+                    self.set("state", {
+                        value: "calling",
+                        with: self.selectedUserId,
+                        callUUID: callUUID
+                    });
+                    self.apiSend({
+                        msgType: "call",
+                        callUUID: callUUID,
+                        to: self.selectedUserId
+                    });
+                    setTimeout(function() {
+                        if (self.state.value == "calling") {
+                            self.rejectCall("No answer");
+                        }
+                    }, 90000);
+                }
+            });
+        },
+        onAnswerButtonClick: function() {
+            var self = this;
+            self.playRingStop();
+            self.openLocalStream(function(err, localstream) { 
+                if (err) {
+                    API.addError(err);
+                    self.rejectCall("Rejected by hardware error");
+                } else {
+                    self.set("state", {
+                        value: "talk",
+                        with: self.state.with,
+                        callUUID: self.state.callUUID
+                    });
+                    self.selectUserId(self.state.with);
+                    self.set("selectedTab", 1);
+                    self.createPeerConnection(self.state.with, localstream);
+                    self.apiSend({
+                        msgType: "callAccept",
+                        callUUID: self.state.callUUID,
+                        to: self.state.with
+                    });
+                }
+            });
+        },
+        rejectCall: function(reason) {
+            var self = this;
+            reason = reason || "Unknown reason";
+            self.apiSend({
+                msgType: "callReject",
+                callUUID: self.state.callUUID,
+                to: self.state.with,
+                reason: reason
+            });
+            self.playRingStop();
+            self.closeLocalStream();
+            self.set("state", {
+                value: "free"
+            });
+        },
+        onRejectButtonClick: function() {
+            this.rejectCall("Rejected by user");
+        },
+        onRecordButtonClick: function() {
+            if (this.recordActive) {
+                this.recordStop();
+            } else {
+                this.recordStart();
+            }
+        },
+        openLocalStream: function(cb) {
+            var self = this;
+             
+            var constraints = {
+                audio: true,
+                video: { 
+                    width: {
+                        "ideal": 640
+                    }, 
+                    height: { 
+                        "ideal": 480
+                    },
+                    "facingMode": "user"
+                }
+            }
+            navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+                self.localStream = stream;
+                var localvideo = document.getElementById('localvideo');
+                localvideo.srcObject = stream;
+                localvideo.volume = 0;
+                cb(null, stream);
+            }).catch(function(err) {
+                console.log(err);
+                API.addError("Error open local stream: " + err + " (" + JSON.stringify(constraints));
+                cb(err, null);
+            });
+        },
+        closeLocalStream: function() {
+            this.recordStop();
+            var localvideo = document.getElementById('localvideo');
+            if ((this.localStream !== undefined) && (this.localStream)) {
+                this.localStream.getTracks().map(function (track) {
+                    track.stop();
+                });
+            }
+            localvideo.removeAttribute("src");
+            self.localstream = null;
+
+            var remotevideo = document.getElementById('remotevideo');
+            if ((this.remoteStream !== undefined) && (this.removeStream)) {
+                this.remoteStream.getTracks().map(function (track) {
+                    track.stop();
+                });
+            }
+            remotevideo.removeAttribute("src");
+            self.remoteStream = null;
+
+            delete self.pc;
+        },
+        createPeerConnection: function(userId, localstream) {
+            var self = this;
+            var pc_constraints = { "optional": [ 
+                { "DtlsSrtpKeyAgreement": true }
+            ]};
+            self.pc = new RTCPeerConnection(self.pc_config, pc_constraints);
+            self.pc.onicecandidate = function(evt) {
+                if (evt.candidate != null) {
+                    self.apiSend({
+                        to: userId,
+                        msgType: "iceCandidate",
+                        candidate: evt.candidate
+                    });
+                }
+            }
+            self.pc.onaddstream = function(evt) {
+                if (evt) {
+                    var remotevideo = document.getElementById('remotevideo');
+                    self.remoteStream = evt.stream;
+                    remotevideo.srcObject = evt.stream;
+                }
+            }
+            self.pc.addStream(localstream);
+        },
+        createAndSendOffer: function() {
+            var self = this;
+            self.pc.createOffer(function(sdp) {
+                self.pc.setLocalDescription(sdp);
+                sdp.sdp = self.setMediaBitrates(sdp.sdp);
+                self.apiSend({
+                    to: self.state.with,
+                    msgType: "sdp",
+                    sdp: sdp,
+                    callUUID: self.state.callUUID
+                });
+            },
+            function(err) {
+                API.addError("ERROR createOffer: " + err);
+            });
+        },
+        createAndSendAnswer: function() {
+            var self = this;
+            self.pc.createAnswer(function(sdp) {
+                self.pc.setLocalDescription(sdp);
+                sdp.sdp = self.setMediaBitrates(sdp.sdp);
+                self.apiSend({
+                    to: self.state.with,
+                    msgType: "sdp",
+                    sdp: sdp,
+                    callUUID: self.state.callUUID
+                })
+            },
+            function(err) {
+                API.addError("ERROR createAnswer: " + err);
+            });
+        },
+        recordStart: function() {
+            if ((this.recordActive) || (this.state.value != "talk")) return;
+            this.set("recordActive", true);
+            var arrayOfStreams = [ this.localStream, this.remoteStream ];
+            this.recordRTC = RecordRTC(arrayOfStreams, {
+                type: 'video',
+                mimeType: 'video/webm'
+            });
+            this.recordCallUUID = this.state.callUUID;
+            this.recordRTC.startRecording();
+        },
+        recordStop: function() {
+            if (!this.recordActive) return;
+            var self = this;
+            this.set("recordActive", false);
+
+            var callUUID = this.recordCallUUID;
+            delete this.recordCallUUID;
+            this.recordRTC.stopRecording(function(singleWebM) {
+                var recordedBlob = self.recordRTC.getBlob();
+                API.doRequestPutFile(
+                    recordedBlob, 
+                    API.getWebAPIRoot() + "/uploadVideo?callUUID=" + callUUID,
+                    function(err, res) {
+                    }
+                );
+            });
+        },
+        playRingStart: function() {
+            var self = this;
+            self.ringAudio = new Audio("{{ .projectPath }}/static/ring.ogg");
+            if (typeof self.ringAudio.loop == 'boolean') {
+                self.ringAudio.loop = true;
+            } else {
+                self.ringAudio.addEventListener('ended', function() {
+                    this.currentTime = 0;
+                    this.play();
+                }, false);
+            }
+            self.ringAudio.play();
+        },
+        playRingStop: function() {
+            var self = this;
+            if (self.ringAudio !== undefined) {
+                self.ringAudio.pause();
+                delete self.ringAudio;
+            }
+        },
+        onSendMessageButtonClick: function() {
+            if (this.selectedUserId == "") return;
+            this.apiSend({
+                msgType: "textMessage",
+                to: API.getUserName(this.selectedUserId),
+                text: API.escapeHTML(this.$$("#messageTextarea").value)
+            });
+            this.$$("#messageTextarea").value = "";
+        },
+        setMediaBitrates: function(sdp) {
+            return this.setMediaBitrate(this.setMediaBitrate(sdp, "video", 256), "audio", 64);
+        },
+        setMediaBitrate(sdp, media, bitrate) {
+            var lines = sdp.split("\n");
+            var line = -1;
+            for (var i = 0; i < lines.length; i++) {
+                if (lines[i].indexOf("m="+media) === 0) {
+                    line = i;
+                    break;
+                }
+            }
+            if (line === -1) {
+                //console.debug("Could not find the m line for", media);
+                return sdp;
+            }
+            //console.debug("Found the m line for", media, "at line", line);
+     
+            // Pass the m line
+            line++;
+     
+            // Skip i and c lines
+            while(lines[line].indexOf("i=") === 0 || lines[line].indexOf("c=") === 0) {
+                line++;
+            }
+            // If we're on a b line, replace it
+            if (lines[line].indexOf("b") === 0) {
+                //console.debug("Replaced b line at line", line);
+                lines[line] = "b=AS:"+bitrate;
+                return lines.join("\n");
+            }
+            // Add a new b line
+            //console.debug("Adding new b line before line", line);
+            var newLines = lines.slice(0, line)
+            newLines.push("b=AS:"+bitrate)
+            newLines = newLines.concat(lines.slice(line, lines.length))
+            return newLines.join("\n")
+        },
+        clearErrors: function() {
+            this.$.errorToast.close();
+            this.set("activeErrors", []);
+        },
+        onErrorToastClose: function() {
+            this.clearErrors();
+        },
+        ready: function() {
+            this.set("activeErrors", []);
+            var self = this;
+            API.listenErrorsMethods(function(errorText) {
+                self.push("activeErrors", errorText);
+                self.$.errorToast.show();
+            }, function() {
+                self.clearErrors();
+            });
+            document.getElementById("app-preloader").style.display = "none";
+            setInterval(function() {
+                self.$$("#messages").onTimer();
+                self.$$("#callStatistics").onTimer();
+            }, 60000);
+
+            this.apiConnect();
+        },
+    });
+    
+    appMain = new AppMain();
+    document.body.appendChild(appMain);
+</script>

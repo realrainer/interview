@@ -1,0 +1,116 @@
+<dom-module id="cc-user-info">
+    <style include="shared-styles"></style>
+    <style>
+        :host {
+        	width: 100%;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            background-color: var(--cc-user-info-background-color, #ffffff);
+            color: var(--cc-user-info-color, #000000);
+        }
+        .avatar-circular {
+            margin: 8px;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+        }
+        .status-circle {
+            margin: 2px;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            margin-right: 16px;
+        }
+        .container {
+            @apply(--layout-horizontal);
+            @apply(--layout-center);
+            width: 100%;
+            margin: 0;
+            padding: 0; 
+        }
+        :host[selectable] {
+            cursor: pointer;
+        }
+        :host[selected] > div {
+            background-color: #dddddd;
+        }
+        :host[selectable] :hover {
+            background-color: #eeeeee;
+        }
+        .user-info {
+            @apply(--layout-vertical);
+            @apply(--layout-center-justified);
+            @apply(--layout-flex);
+        }
+        .user-name-text {
+            font-size: 18px;
+        }
+        .role-text {
+            font-size: 12px;
+            color: var(--cc-user-info-alt-color, --grey-text-color);
+        }
+    </style>
+    <template>
+        <div class="container">
+            <img class="avatar-circular" width="48px" src="[[imageSrc]]"/>
+            <div class="user-info">
+                <div class="user-name-text">[[userName]]</div>
+                <div class="role-text">[[_roleText(role)]]</div>
+            </div>
+            <template is="dom-if" if=[[!noShowOnline]]>
+                <div class="status-circle" style$='background-color: #[[statusColor]]'></div>
+            </template>
+        </div>
+    </template>
+</dom-module>
+<script>
+    Polymer({
+        is: 'cc-user-info',
+        properties: {
+            imageSrc: {
+                type: String, 
+                value: ""
+            },
+            userName: {
+                type: String,
+                value: ""
+            },
+            userId: {
+                type: String
+            },
+            role: {
+                type: String,
+                value: ""
+            },
+            online: {
+                type: Boolean,
+                value: false,
+            },
+            noShowOnline: {
+                type: Boolean,
+                value: false
+            },
+            statusColor: {
+                type: String,
+                notify: true,
+                computed: "computeStatusColor(online)"
+            }
+        },
+        _roleText: function(role) {
+            var roles = {
+                "inspector": "inspector",
+                "agent": "agent"
+            }
+            return roles[role];
+        },
+        computeStatusColor: function(online) {
+            if (online) {
+                return "55dd55";
+            } else {
+                return "bbbbbb";
+            }
+        }
+    });
+</script>

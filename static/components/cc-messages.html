@@ -1,0 +1,103 @@
+<dom-module id="cc-messages">
+    <style include="shared-styles">
+    <style>
+        :host {
+            width: 100%;
+        }
+        .avatar-circular {
+            margin: 8px;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+        }
+        .message-container {
+            @apply(--layout-horizontal);
+            background-color: white;
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+        .message-container[foreign] {
+            @apply(--layout-horizontal-reverse);
+        }
+        .message-info {
+            @apply(--layout-vertical);
+            @apply(--layout-center-justified);
+            @apply(--layout-flex);
+        }
+        .message-info[foreign] {
+            @apply(--layout-end);
+        }
+        .message-from {
+            font-size: 14px;
+            color: var(--grey-text-color);
+        }
+    </style>
+    <template>
+        <template is="dom-if" if="[[!selectedUserId]]">
+             <cc-no-user-selected-banner></cc-no-user-selected-banner>
+        </template>
+        <template id="messagesRepeat" is="dom-repeat" items="[[messages]]">
+            <div class="message-container" foreign$=[[!item.isOwn]]>
+                <img class="avatar-circular" width="48px" src="[[_avatarSrc(item.messageFrom)]]"/>
+                <div class="message-info" foreign$=[[!item.isOwn]]>
+                    <div class="message-from">[[item.messageFrom]], [[_timeAgo(item.messageTime, timer)]]</div>
+                    <div style="font-size: 14px;">[[item.text]]</div>
+                </div>
+            </div>
+        </template>
+    </template>
+</dom-module>
+<script>
+    Polymer({
+        is: 'cc-messages',
+        properties: {
+            ownUserId: {
+                type: String
+            },
+            selectedUserId: {
+                type: String,
+                value: "",
+                notify: true
+            },
+            timer: {
+                type: Number,
+                value: 0,
+                notify: true
+            },
+            messages: {
+                type: Array,
+                value: [],
+                notify: true
+            }
+        },
+        onTimer: function() {
+            this.set("timer", parseInt(self.timer) + 1);
+        },
+        onMessagesReceived: function(reply) {
+            if (reply.allMessages) {
+                this.set("messages", []);
+            }
+            for (i = 0; i < reply.messageEntries.length; i++) {
+                var entry = reply.messageEntries[i];
+                if (entry.messageFrom == API.getUserName(this.ownUserId)) {
+                    entry.isOwn = true;
+                } else {
+                    entry.isOwn = false;
+                }
+                this.push("messages", entry);
+            }
+        },
+        _avatarSrc: function(userName) {
+            return API.getWebAPIRoot() + "/getAvatar?userName=" + userName;
+        },
+        _timeAgo: function(dateTime) {
+            return moment(dateTime, moment.ISO_8601).fromNow();
+        },
+        ready: function() {
+            var self = this;
+            this.$$("#messagesRepeat").addEventListener('dom-change', function (e) {
+                self.scrollTop = self.scrollHeight;  
+            });
+        }
+    });
+</script>

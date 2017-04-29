@@ -1,0 +1,28 @@
+<dom-module id="cc-no-user-selected-banner">
+    <style>
+        :host {
+            width: 100%;
+        }
+        .all-center {
+            height: 100%;
+            @apply(--layout-vertical);
+            @apply(--layout-center);
+            @apply(--layout-center-aligned);
+        }
+        .help-text {
+            margin: 0 16px 0 16px;
+            font-size: 14px;
+        }
+    </style>
+    <template>
+        <div class="all-center" style="margin-top: 50px;">
+            <div class="help-text">No user selected</div>
+            <div class="help-text">Select a user in left panel</div>
+        </div>
+    </template>
+</dom-module>
+<script>
+    Polymer({
+        is: 'cc-no-user-selected-banner'
+    });
+</script>

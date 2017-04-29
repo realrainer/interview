@@ -1,0 +1,174 @@
+<dom-module id="cc-call-statistics">
+    <style include="shared-styles">
+    <style>
+        :host {
+        	margin: 0;
+        }
+		.all-center {
+            height: 100%;
+            @apply(--layout-vertical);
+            @apply(--layout-center);
+            @apply(--layout-center-aligned);
+        }
+        .call-history-item {
+            @apply(--layout-horizontal);
+            @apply(--layout-center);
+            padding-top: 8px;
+        }
+        .call-history-title {
+            @apply(--layout-horizontal);
+            @apply(--layout-center);
+            padding-top: 8px;
+            margin-left: 8px;
+        }
+        .call-history-title > iron-icon {
+            margin-right: 8px;
+            color: var(--paper-blue-500);
+        }
+        .call-history-item > ::content > * {
+            margin-left: 8px;
+        }
+        .call-history-info {
+            @apply(--layout-vertical);
+        }
+        .call-history-item-time {
+            color: var(--grey-text-color);
+            font-size: 13px;
+        }
+        .call-history-item-play {
+            color: var(--paper-blue-500);
+        }
+    </style>
+    <template>
+        <template is="dom-if" if="[[!selectedUserId]]">
+             <cc-no-user-selected-banner></cc-no-user-selected-banner>
+        </template>
+        <template id="callHistoryList" is="dom-repeat" items=[[callHistory]] sort="_historyItemSort" restamp>
+            <template is="dom-if" if=[[!index]]>
+                <div class="call-history-title">
+                    <iron-icon icon="icons:info-outline"></iron-icon>
+                    <span>Call statistics</span>
+                </div>
+            </template>
+            <div class="call-history-item">
+                <iron-icon icon=[[item.icon]] style$="color: #[[item.iconColor]];"></iron-icon>
+                <div>[[item.with]]</div>
+                <div class="call-history-info">
+                    <div class="call-history-item-time">
+                        [[item.text]], <i>[[_timeAgo(item.eventTime, timer)]]</i>
+                    </div>
+                    <template is="dom-if" if="[[item.durationText]]">
+                        <div class="call-history-item-time">
+                            duration: [[item.durationText]]
+                        </div>
+                    </template>
+                </div>
+                <template is="dom-if" if="[[isInspector]]">
+                    <template is="dom-repeat" items=[[item.callRecordL]] as="record">
+                        <paper-icon-button class="call-history-item-play" icon="av:play-circle-outline" on-tap="onPlayButtonClick" data-args$=[[record.recordUUID]]></paper-icon-button>
+                    </template>
+                </template>
+            </div>
+        </template>
+    </template>
+</dom-module>
+<script>
+    Polymer({
+        is: 'cc-call-statistics',
+        properties: {
+        	ownUserId: {
+        		type: String
+        	},
+        	selectedUserId: {
+        		type: String,
+        		value: "",
+        		notify: true
+        	},
+        	callHistory: {
+        		type: Array,
+        		notify: true
+        	},
+        	isInspector: {
+        		type: Boolean,
+        		value: false,
+        		notify: true
+        	},
+        	timer: {
+                type: Number,
+                value: 0,
+                notify: true
+            }
+        },
+        onCallHistoryReceived: function(reply) {
+        	if (reply.allHistory) {
+                this.set("callHistory", []);
+            }
+            for (i = 0; i < reply.historyEntries.length; i++) {
+                var entry = reply.historyEntries[i];
+                if (entry.callFrom == API.getUserName(this.ownUserId)) {
+                    entry.with = entry.callTo;
+                } else {
+                    entry.with = entry.callFrom;
+                }
+                if (entry.callTo == entry.with) {
+                    if (entry.startTime == "0001-01-01T00:00:00Z") {
+                        entry.icon = "communication:call-missed-outgoing";
+                        entry.iconColor = "ef5350";
+                        entry.eventTime = entry.endTime;
+                        entry.text = "no answer";
+                    } else {
+                        entry.icon ="communication:call-made";
+                        entry.iconColor = "0b8043";
+                        entry.eventTime = entry.startTime;
+                        entry.text = "outgoing";
+                        entry.durationText = moment.duration(moment(entry.endTime, moment.ISO_8601).diff(moment(entry.startTime, moment.ISO_8601))).humanize();
+                    }
+                } else {
+                    if (entry.startTime == "0001-01-01T00:00:00Z") {
+                        entry.icon = "communication:call-missed";
+                        entry.iconColor = "ef5350";
+                        entry.eventTime = entry.endTime;
+                        entry.text = "missed";
+                    } else {
+                        entry.icon = "communication:call-received";
+                        entry.iconColor = "0b8043";
+                        entry.eventTime = entry.startTime;
+                        entry.text = "incoming";
+                        entry.durationText = moment.duration(moment(entry.endTime, moment.ISO_8601).diff(moment(entry.startTime, moment.ISO_8601))).humanize();
+                    }
+                }
+                var find = false;
+                for (j = 0; (j < this.callHistory.length) && (!find); j++) {
+                    if (this.callHistory[j].callUUID == entry.callUUID) {
+                        this.set("callHistory." + j, entry);
+                        find = true;
+                    }
+                }
+                if (!find) {
+                    this.push("callHistory", entry);
+                }
+            }
+            document.getElementById("callHistoryList").render();
+        },
+        onPlayButtonClick: function(e) {
+            window.open(API.getWebAPIRoot() + "/downloadVideo?recordUUID=" + e.model.record.recordUUID);
+        },
+        _historyItemSort: function(a, b) {
+            if (a.eventTime < b.eventTime) {
+                return 1;
+            }
+            if (a.eventTime > b.eventTime) {
+                return -1;
+            }
+            if (a.eventTime == b.eventTime) {
+                return 0;
+            }
+        },
+        _timeAgo: function(dateTime) {
+            return moment(dateTime, moment.ISO_8601).fromNow();
+        },
+        onTimer: function() {
+            this.set("timer", parseInt(self.timer) + 1);
+        }
+    });
+</script>

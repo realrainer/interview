@@ -1,0 +1,9 @@
+{
+  "name": "interview",
+  "version": "0.0.1",
+  "author": "realrainer",
+  "dependencies": {
+    "html-minifier": "^3.4.3",
+    "vulcanize": "^1.14.12"
+  }
+}

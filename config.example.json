@@ -1,0 +1,26 @@
+{
+	"mysql": "user:password@tcp(localhost:3306)/dbname?charset=utf8&parseTime=True&loc=Local",
+	"webapp": {
+	    "listen": "hostname.example.com:8443",
+	    "projectHost": "https://hostname.example.com:8443",
+	    "projectPath": "/interview",
+	    "sslCert": "./hostname.example.com.crt",
+	    "sslKey": "./hostname.example.com.key",
+	    "callRecordRoot": "./callRecord",
+	    "peerConnectionConfig": { 
+            "iceServers": [
+                { "urls": "stun:stun.l.google.com:19302" }
+            ]
+        }
+	},
+	"usersBackend": "file",
+	"ldap": {
+		"usersGroupDn": "cn=users,ou=interview,dc=example,dc=com",
+		"inspectorsGroupDn": "cn=inspectors,ou=interview,dc=example,dc=com",
+		"uri": "ldapi:///",
+		"base": "dc=example,dc=com"
+	},
+	"file": {
+		"usersFile": "./users.json"
+	}
+}
