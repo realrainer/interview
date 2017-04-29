@@ -1,5 +1,6 @@
 # interview
 Responsive web application with simple messaging and webrtc video calling for organize interviews.
+Server side written in Golang, client side made with Polymer
 
 # Features:
 * Simple messaging (only text)
