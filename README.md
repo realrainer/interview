@@ -13,7 +13,7 @@ Responsive web application with simple messaging and webrtc video calling for or
 
 ![Alt text](/screenshot2.png?raw=true "Screenshot 2")
 
-![Alt text](/screenshot1.png?raw=true "Screenshot 3")
+![Alt text](/screenshot3.png?raw=true "Screenshot 3")
 
 # Install:
 * Clone repository
