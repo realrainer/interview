@@ -183,9 +183,10 @@
                     <template is="dom-if" if="[[_stateTalk(state.value)]]" restamp>
                         <template is="dom-if" if="[[_isInspector(ownUserData.role)]]">
                             <paper-icon-button id="recordButton" icon="av:fiber-manual-record" on-tap="onRecordButtonClick" active$=[[recordActive]]></paper-icon-button>
-                            <paper-tooltip for="recordButton">Запись разговора</paper-tooltip>
+                            <paper-tooltip for="recordButton">Record interview</paper-tooltip>
                         </template>
                         <paper-icon-button id="callRejectButton" icon="notification:phone-missed" on-tap="onRejectButtonClick"></paper-icon-button>
+                        <paper-tooltip for="callRejectButton">Reject call</paper-tooltip>
                     </template>
                 </app-toolbar>
                 <paper-tabs selected={{"{{selectedTab}}"}}>
