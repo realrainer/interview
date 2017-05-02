@@ -465,7 +465,7 @@ func (a *WebApp) WebAPIDownloadVideo(c *gin.Context) {
 	var callRecord CallRecord
 	if err := a.pOrm.Conn.Where("record_uuid = ?", recordUUID).First(&callRecord).Error; err == nil {
 		var historyEntry CallHistory
-		if err := a.pOrm.Conn.Where("id = ?", callRecord.ID).First(&historyEntry).Error; err == nil {
+		if err := a.pOrm.Conn.Where("id = ?", callRecord.CallHistoryID).First(&historyEntry).Error; err == nil {
 			if (historyEntry.CallFrom == getUserName(userId.(string))) || (historyEntry.CallTo == getUserName(userId.(string))) {
 				c.Header("Content-Type", "video/webm")
 				c.File(a.config.CallRecordRoot + "/" + callRecord.FileName)
